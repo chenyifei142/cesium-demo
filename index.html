@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电子围栏</title>
+    <script src="./js/vue.min.js"></script>
+    <link href="./js/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <script src="./js/Cesium/Cesium.js"></script>
+    <style type="text/css" media="all">
+        #app {
+            width: 100%;
+            height: 100%;
+        }
+
+        #cesiumContainer {
+            width: 100%;
+            height: 100%;
+        }
+
+        html {
+            height: 100%;
+        }
+
+        body {
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div id="cesiumContainer">
+    </div>
+</div>
+</body>
+
+<script>
+    new Vue({
+        el: '#app',
+        data() {
+            return {
+                text1: '还没进入',
+                keyName: name,
+                viewer: null,
+                cesium: {
+                    infoWin: null,
+                    mode: "2d",
+                    initLng: 117.759051,
+                    initLat: 26.967364,
+                    initHeight: 2000,
+                    tiandituKey: "07565c6b1696404b2a4fa1a895b8c161", //天地图秘钥
+                    nowLoad: "",
+                },
+                posData: [],
+                polygonData: [],
+                polygonsData: [],
+                point: [],
+                pointData: [],
+                flag: false
+            }
+        },
+        mounted() {
+            const queryString = window.location.search;
+            // 将查询参数字符串解析成对象
+            const queryParams = new URLSearchParams(queryString);
+
+            // 获取指定参数的值
+            const polygon = queryParams.get('polygon'); // "123"
+            const polygons = queryParams.get('polygons'); // "123"
+            const point = queryParams.get('point'); // "123"
+            if (polygon) this.polygonData = JSON.parse(polygon)
+            if (point) this.pointData = JSON.parse(point)
+            if (polygons) this.polygonsData = polygons
+            this.initMap()
+        },
+        methods: {
+            initMap() {
+                var provider = new Cesium.UrlTemplateImageryProvider({
+                    url: "https://{s}.tianditu.gov.cn/DataServer?T=img_w&x={x}&y={y}&l={z}&tk=" +
+                        this.cesium.tiandituKey,
+                    subdomains: ["t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7"],
+                    maximumLevel: 18,
+                });
+                var viewer = new Cesium.Viewer("cesiumContainer", {
+                    infoBox: false, // 是否显示点击元素之后显示的信息
+                    timeline: false, // 是否显示时间线控件
+                    selectionIndicator: false, // 是否显示指示器组件
+                    animation: false, // 是否显示动画空间
+                    sceneModePicker: false, // 是否显示投影方式
+                    baseLayerPicker: false,
+                    homeButton: false, //小房子
+                    geocoder: false, //搜索框
+                    navigationHelpButton: false, //帮助
+                    //天地图
+                    imageryProvider: provider,
+                    enableZoomControls: false
+                });
+                viewer.scene.screenSpaceCameraController.enableTilt = false;
+                viewer._cesiumWidget._creditContainer.style.display = "none";
+                viewer.cesiumWidget.screenSpaceEventHandler.removeInputAction(
+                    Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK
+                );
+
+                this.cesium.provider = provider;
+                this.viewer = viewer; //初始化地图
+
+                this.viewer.camera.setView({
+                    // fromDegrees()方法，将经纬度和高程转换为世界坐标
+                    destination: Cesium.Cartesian3.fromDegrees(
+                        this.cesium.initLng,
+                        this.cesium.initLat,
+                        this.cesium.initHeight
+                    ),
+                    orientation: {
+                        heading: Cesium.Math.toRadians(0),
+                        roll: 0,
+                    },
+                });
+
+                if (this.polygonData.length) this.drawPolyline(this.polygonData)
+                if (this.pointData.length) this.drawPoint(this.pointData)
+                if (this.polygonsData) {
+                    let arr = this.polygonsData.split('!')
+                    for (let i = 0; i < arr.length; i++) {
+                        this.drawPolygon(JSON.parse(arr[i]))
+                    }
+                }
+
+            },
+            drawPolygon(positions) {
+                if (typeof positions === "string") positions = JSON.parse(positions)
+                var ellipsoid = this.viewer.scene.globe.ellipsoid;
+                let cartesian3 = new Cesium.Cartesian3(positions[0].x, positions[0].y, positions[0].z)
+                let polyCenter = Cesium.BoundingSphere.fromPoints([cartesian3]).center;
+                var cartographic = ellipsoid.cartesianToCartographic(polyCenter);
+                var lat = Cesium.Math.toDegrees(cartographic.latitude);
+                var lng = Cesium.Math.toDegrees(cartographic.longitude);
+                var alt = cartographic.height;
+                this.viewer.camera.setView({
+                    destination: Cesium.Cartesian3.fromDegrees(
+                        lng,
+                        lat,
+                        2000
+                    ),
+                    orientation: {
+                        heading: Cesium.Math.toRadians(0),
+                        roll: 0,
+                    },
+                });
+                var config = {color: "#f72121", width: 4};
+                this.viewer.entities.add({
+                    polygon: {
+                        hierarchy: positions,
+                        material: new Cesium.Color.fromCssColorString(config.color).withAlpha(0.5),
+                        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, //设置HeightReference高度参考类型为CLAMP_TO_GROUND贴地类型
+                    },
+                });
+            },
+            drawPolyline(positions) {
+                if (typeof positions === "string") positions = JSON.parse(positions)
+                var ellipsoid = this.viewer.scene.globe.ellipsoid;
+                let cartesian3 = new Cesium.Cartesian3(positions[0].x, positions[0].y, positions[0].z)
+                let polyCenter = Cesium.BoundingSphere.fromPoints([cartesian3]).center;
+                var cartographic = ellipsoid.cartesianToCartographic(polyCenter);
+                var lat = Cesium.Math.toDegrees(cartographic.latitude);
+                var lng = Cesium.Math.toDegrees(cartographic.longitude);
+                var alt = cartographic.height;
+                this.viewer.camera.setView({
+                    // fromDegrees()方法，将经纬度和高程转换为世界坐标
+                    destination: Cesium.Cartesian3.fromDegrees(
+                        lng,
+                        lat,
+                        600
+                    ),
+                    orientation: {
+                        heading: Cesium.Math.toRadians(0),
+                        roll: 0,
+                    },
+                });
+                var config = {color: "#f72121", width: 4};
+                this.viewer.entities.add({
+                    polygon: {
+                        hierarchy: positions,
+                        material: new Cesium.Color.fromCssColorString(config.color).withAlpha(0.5),
+                        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, //设置HeightReference高度参考类型为CLAMP_TO_GROUND贴地类型
+                    },
+                });
+            },
+            drawPoint(position) {
+                this.viewer.camera.setView({
+                    // fromDegrees()方法，将经纬度和高程转换为世界坐标
+                    destination: Cesium.Cartesian3.fromDegrees(
+                        position[0].x,
+                        position[0].y,
+                        600
+                    ),
+                    orientation: {
+                        heading: Cesium.Math.toRadians(0),
+                        roll: 0,
+                    },
+                });
+                this.viewer.entities.add({
+                    position: Cesium.Cartesian3.fromDegrees(position[0].x, position[0].y),
+                    point: {
+                        pixelSize: 10,
+                        color: Cesium.Color.RED,
+                        eyeOffset: new Cesium.Cartesian3(0, 0, -300),
+                        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+                    }
+                })
+            }
+        }
+    })
+</script>
+</html>

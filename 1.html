@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管网概况</title>
+    <script src="./js/vue.min.js"></script>
+    <script src="./js/index.js"></script>
+    <script type="text/javascript" src="./js/uni.webview.1.5.4.js"></script>
+    <script type="text/javascript"
+            src="https://api.map.baidu.com/api?v=1.0&&type=webgl&ak=DqhsLFZpP7fLVSOYYfKGSV2twQoagqof"></script>
+    <style type="text/css" media="all">
+        #app {
+            width: 100%;
+            height: 100%;
+        }
+
+        #container {
+            width: 100%;
+            height: 100%;
+        }
+
+        html {
+            height: 100%;
+        }
+
+        body {
+            height: 100%;
+            padding: 0;
+            margin: 0;
+            overflow-y: hidden;
+        }
+
+        .top-box {
+            position: absolute;
+            top: 15vh;
+            right: 10px;
+            z-index: 999;
+
+        }
+
+        .bottom-box {
+            position: absolute;
+            bottom: 15vh;
+            right: 10px;
+            z-index: 999;
+        }
+
+        .img-map1 {
+            width: 65px;
+            height: 73px;
+            background-image: url("./img/layer.png");
+            background-repeat: no-repeat;
+            background-size: cover;
+        }
+
+        .img-map2 {
+            width: 65px;
+            height: 73px;
+            background-image: url("./img/map.png");
+            background-repeat: no-repeat;
+            background-size: cover;
+            margin-top: -5px;
+            cursor: pointer;
+            z-index: 999;
+
+        }
+
+        .img-map3 {
+            width: 65px;
+            height: 65px;
+            background-image: url("./img/location.png");
+            background-repeat: no-repeat;
+            background-size: cover;
+        }
+
+        .img-map4 {
+            width: 65px;
+            height: 63px;
+            background-image: url("./img/amplify.png");
+            background-repeat: no-repeat;
+            background-size: cover
+        }
+
+        .img-map5 {
+            width: 65px;
+            height: 63px;
+            background-image: url("./img/reduce.png");
+            background-repeat: no-repeat;
+            background-size: cover;
+            margin-top: -5px;
+        }
+
+        .customCallout {
+            box-sizing: border-box;
+            border-radius: 30px;
+            width: 200px;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .content {
+            flex: 0 1 auto;
+            margin: 0 10px;
+            font-size: 14px;
+        }
+
+        .content__text {
+            font-size: 14px;
+            font-weight: 400;
+            color: #2A2C32;
+            line-height: 14px;
+            white-space: nowrap; /* 防止文本换行 */
+            overflow: hidden; /* 隐藏溢出部分的文本 */
+            text-overflow: ellipsis; /* 使用省略号表示省略部分的文本 */
+        }
+
+        .content__text1 {
+            font-size: 14px;
+            font-weight: 400;
+            color: #2A2C32;
+            line-height: 18px;
+            opacity: 0;
+        }
+
+        .green {
+            color: #08CF36;
+        }
+
+        .flex-start2 {
+            margin-top: 5px;
+            display: flex;
+            flex-direction: row;
+            /* 在交叉轴方向上，使子元素居中对齐 */
+            align-items: center;
+            /* 在主轴方向上，使子元素居中对齐 */
+            justify-content: flex-start;
+            gap: 10px;
+        }
+
+        #infoWindow {
+            display: none;
+        }
+
+        #infoWindow1 {
+            display: none;
+        }
+
+        #infoWindow2 {
+            display: none;
+        }
+
+        .infoWindow {
+            width: 230px;
+            display: flex;
+            flex-wrap: wrap;
+            pointer-events: all;
+        }
+
+        .infoWindow1 {
+            width: 230px;
+            display: flex;
+            flex-wrap: wrap;
+            pointer-events: all;
+        }
+
+
+        .infoWindow2 {
+            width: 230px;
+            display: flex;
+            flex-wrap: wrap;
+            pointer-events: all;
+        }
+
+        .BMap_bubble_pop {
+            background: rgb(255, 255, 255, .7) !important;
+            font-size: 14px;
+            font-weight: 800;
+            color: #2A2C32;
+            line-height: 14px;
+        }
+
+        .BMap_bubble_content {
+            width: 100%;
+        }
+
+        .content__img {
+            width: 70px;
+            height: 70px;
+        }
+
+        .content__video {
+            width: 120px;
+            height: 120px;
+        }
+
+        .select__img {
+            background: #7C7C7C;
+            border-radius: 8px 8px 8px 8px;
+            opacity: 0.5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 50px;
+            color: #fff;
+        }
+
+        .img-box {
+            position: relative;
+        }
+
+        .icon-del {
+            position: absolute;
+            top: 0;
+            right: 0;
+            line-height: 10px;
+        }
+
+        .mask {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgb(0, 0, 0, .5);
+            z-index: 99999;
+        }
+
+        .column-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .blue {
+            color: #1296db;
+        }
+
+        #loading {
+            display: none;
+        }
+
+        .button {
+            width: 80px;
+            height: 20px;
+            padding: 5px 5px;
+            background: linear-gradient(270deg, #2E5AF6 0%, #5F97F8 100%);
+            border-radius: 20px;
+            text-align: center;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div id="loading">
+        <div class="mask column-center">
+            <img style="width: 30px;height: 30px" src="img/loading.png" alt=""/>
+            <div class="blue">加载中</div>
+        </div>
+    </div>
+
+    <div id="container"></div>
+    <div>
+        <div class="top-box">
+            <div class="img-map1" @click="toLayerSelect()"></div>
+            <div class="img-map2" @click="changeMap()"></div>
+        </div>
+        <div class="bottom-box">
+            <div class="img-map3" @click="getCurrentLocation()"></div>
+            <div class="img-map4" @click="handleAmplify()"></div>
+            <div class="img-map5" @click="handleReduce()"></div>
+        </div>
+    </div>
+    <div class="infoWindow" id="infoWindow">
+        <div class="customCallout">
+            <div class="content">
+                图片：
+                <div class="flex-start2">
+                    <div v-for="item in imgList" class="img-box flex-start2">
+                        <img :src="item" class="content__img">
+                        <span class='icon-del'
+                              @touchstart="onDelClick(item,infoWindowForm.id,infoWindowForm.pipelineType,null)">x</span>
+                    </div>
+                    <input type="file" id="file" accept="image/*" style="display: none;"/>
+                    <div v-if="((infoWindowForm.urls===[] || (infoWindowForm.urls && infoWindowForm.urls.length < 2))&&(imgList.length < 2))||imgFlag"
+                         class="content__img select__img" id="uploadImg"
+                         @touchstart="uploadImg(infoWindowForm.id,infoWindowForm.pipelineType,null)">
+                        +
+                    </div>
+                </div>
+                视频：
+                <div class="flex-start2">
+                    <div v-for="item in videoList" class="img-box flex-start2">
+                        <video :src="item" class="content__video" controls></video>
+                        <span class='icon-del'
+                              @touchstart="onDelClickVideo(item,infoWindowForm.id,infoWindowForm.pipelineType,null)">x</span>
+                    </div>
+                    <input type="file" id="videoFile" accept="video/*" capture="environment" style="display: none;"/>
+                    <div v-if="((infoWindowForm.videoUrls===[] || (infoWindowForm.videoUrls && infoWindowForm.videoUrls.length < 1))&&(videoList.length < 2))||videoFlag"
+                         class="content__img select__img" id="uploadImg"
+                         @touchstart="uploadVideo(infoWindowForm.id,infoWindowForm.pipelineType,null)">
+                        +
+                    </div>
+                </div>
+                <div class="flex-start2">
+                    <span class="content__text">管线名称：</span>
+                    <span class="content__text green">{{infoWindowForm.piplineName}}</span>
+                </div>
+                <div class="flex-start2">
+                    <span class="content__text">管线材质：</span>
+                    <span class="content__text">{{infoWindowForm.pipelineMaterialName}}</span>
+                </div>
+                <div class="flex-start2">
+                    <span class="content__text">管线类型：</span>
+                    <span class="content__text">{{infoWindowForm.pipelineTypeName}}</span>
+                </div>
+                <div class="flex-start2">
+                    <span class="content__text">管径：</span>
+                    <span class="content__text">{{infoWindowForm.diameter}}mm</span>
+                </div>
+                <div class="flex-start2">
+                    <span class="content__text">管线长度：</span>
+                    <span class="content__text">{{infoWindowForm.pipelineLength}}m</span>
+                </div>
+                <div class="flex-start2">
+                    <span class="content__text1">1 </span>
+                    <span class="content__text1">1 </span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="infoWindow1" id="infoWindow1">
+        <div class="customCallout">
+            <div class="content">
+                图片：
+                <div class="flex-start2">
+                    <div v-for="item in imgList" class="img-box flex-start2">
+                        <img :src="item" class="content__img">
+                        <span class='icon-del'
+                              @touchstart="onDelClick(item,infoWindowForm.id,null,infoWindowForm.deviceType)">x</span>
+                    </div>
+                    <input type="file" id="file" accept="image/*" style="display: none;"/>
+                    <div v-if="(infoWindowForm.urls===null || (infoWindowForm.urls && infoWindowForm.urls.length < 2))&&(imgList.length < 2)"
+                         class="content__img select__img" id="uploadImg"
+                         @touchstart="uploadImg(infoWindowForm.id,null,infoWindowForm.deviceType)">
+                        +
+                    </div>
+                </div>
+                视频：
+                <div class="flex-start2">
+                    <div v-for="item in videoList" class="img-box flex-start2">
+                        <video :src="item" class="content__video" controls></video>
+                        <span class='icon-del'
+                              @touchstart="onDelClickVideo(item,infoWindowForm.id,infoWindowForm.pipelineType,null)">x</span>
+                    </div>
+                    <input type="file" id="videoFile" accept="video/*" capture="environment" style="display: none;"/>
+                    <div v-if="(infoWindowForm.videoUrls===[] || (infoWindowForm.videoUrls && infoWindowForm.videoUrls.length < 1))&&(videoList.length < 1)"
+                         class="content__img select__img" id="uploadImg"
+                         @touchstart="uploadVideo(infoWindowForm.id,null,infoWindowForm.deviceType)">
+                        +
+                    </div>
+                </div>
+                <div class="flex-start2">
+                    <span class="content__text">设备名称：</span>
+                    <span class="content__text ">{{infoWindowForm.deviceName}}</span>
+                </div>
+                <div class="flex-start2">
+                    <span class="content__text">设备编号：</span>
+                    <span class="content__text ">{{infoWindowForm.deviceNumber}}</span>
+                </div>
+                <div class="flex-start2">
+                    <span class="content__text">设备经纬度：</span>
+                    <span class="content__text ">{{infoWindowForm.longitude}},{{infoWindowForm.latitude}}</span>
+                </div>
+                <div class="flex-start2">
+                    <span class="content__text">设备当前值：</span>
+                    <span class="content__text ">{{infoWindowForm.value}} {{infoWindowForm.unit}}</span>
+                </div>
+
+                <div class="flex-start2">
+                    <span class="content__text1">1 </span>
+                    <span class="content__text1">1 </span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="infoWindow2" id="infoWindow2">
+        <div class="customCallout">
+            <div class="content">
+                <div class="flex-start2">
+                    <span class="content__text">经度：</span>
+                    <span class="content__text ">{{infoWindowForm.longitude}}</span>
+                </div>
+                <div class="flex-start2">
+                    <span class="content__text">纬度：</span>
+                    <span class="content__text ">{{infoWindowForm.latitude}}</span>
+                </div>
+                <div class="flex-start2">
+                    <div class="button" @touchstart="seeMonitor(infoWindowForm.liveUrl)">查看监控</div>
+                </div>
+
+                <div class="flex-start2">
+                    <span class="content__text1">1 </span>
+                    <span class="content__text1">1 </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+
+<script>
+    new Vue({
+        el: '#app',
+        data() {
+            return {
+                map: null,
+                point: null,
+                flag: false,
+                token: '',
+                img: '',
+                imgList: [],
+                videoList: [],
+                infoWindowForm: {},
+                list: '',
+                nowData: {},
+                baseUrl: 'http://36.137.23.161:8998/prod-api',
+                // baseUrl: 'http://101.37.164.18:8999',
+                // baseUrl: 'http://kettwebsocket.natapp1.cc',
+                currentZoom: 14, // 初始缩放级别
+                mapType: '',
+                imgFlag: false,
+                videoFlag: false,
+
+            }
+        },
+        mounted() {
+            const queryString = window.location.search;
+            const queryParams = new URLSearchParams(queryString);
+            this.token = queryParams.get('token'); // "123"
+            let list = queryParams.get('list')
+            if (list) this.list = JSON.parse(list)
+            document.getElementById('loading').style.display = 'block'
+            this.initMap()
+            if (this.list.length) {
+                if (this.list.length) {
+                    for (const item of this.list) {
+                        if (item.name === '雨水管道') {
+                            this.getData(1, '#4CF1FF')
+                        } else if (item.name === '污水管道') {
+                            this.getData(2, '#0011FE')
+                        } else if (item.name === '管点') {
+                            for (const ele of item.menuItemList) {
+                                if (ele.menuItemList.length) {
+                                    // this.getPoint(element)
+                                    // for (const element of ele.menuItemList) {
+                                    //     this.huizhiPoint2(element)
+                                    // }
+
+                                }
+                            }
+                        } else if (item.name === '设备') {
+                            for (const ele of item.menuItemList) {
+                                if (ele.name !== '监控') this.getPoint(ele.dictValue)
+                                else this.drawMonitor(ele.menuItemList)
+                            }
+                        }
+                    }
+                }
+
+            } else {
+                setTimeout(async () => {
+                    await this.getData(1, '#4CF1FF')
+                    await this.getData(2, '#0011FE')
+                }, 1000)
+            }
+
+
+            this.$nextTick(() => {
+                document.addEventListener('UniAppJSBridgeReady', function () {
+                    uni.getEnv(function (res) {
+                        console.log('当前环境：' + JSON.stringify(res));
+                    });
+                });
+            })
+        },
+        methods: {
+            getData(id, color) {
+                let _this = this
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", this.baseUrl + `/dma/pipeline/allList?pipelineType=${id}`, true);
+                xhr.setRequestHeader("Authorization", `Bearer ` + this.token);
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
+                            // 请求成功，处理响应
+                            // _this.drawLine()
+                            let res = JSON.parse(xhr.response)
+                            if (res.data && !res.data.length) document.getElementById('loading').style.display = 'none'
+                            res.data.forEach((child) => {
+                                if (child.dmaPipePointVoList && child.dmaPipePointVoList.length > 0) {
+                                    _this.drawLine(child.dmaPipePointVoList, child, color);
+                                }
+                            });
+                        } else {
+                            // 请求失败
+                            console.error("上传失败");
+                        }
+                    }
+                };
+                // 发送Ajax请求，带有FormData作为请求体
+                xhr.send();
+            },
+            drawLine(points, item, color) {
+                let myArr = [];
+                let _this = this
+                if (points) {
+                    points.forEach((item) => {
+                        if (item && item.longitude) {
+                            var wgs84togcj02 = coordtransform.wgs84togcj02(item.longitude, item.latitude);
+                            var gcj02tobd09 = coordtransform.gcj02tobd09(wgs84togcj02[0], wgs84togcj02[1]);
+                            myArr.push(new BMapGL.Point(gcj02tobd09[0], gcj02tobd09[1]));
+                        }
+                    });
+                    if (myArr.length > 0) {
+                        let polyline = new BMapGL.Polyline(myArr, {
+                            strokeColor: color,
+                            strokeWeight: item.diameter / 100 || 6,
+                            strokeOpacity: 0.9,
+                            enableClicking: false,
+                        });
+
+                        let infoContent = document.getElementById("infoWindow");
+                        this.map.getPanes().floatShadow.style.display = 'none';
+                        polyline.addEventListener("click", (e) => {
+                            let opts1 = {
+                                title: item.pipelineNumber, // 信息窗口标题
+                                enableCloseOnClick: false
+                            };
+
+                            var xhr = new XMLHttpRequest();
+                            xhr.open("GET", this.baseUrl + `/dma/pipeline/${item.id}`, true);
+                            xhr.setRequestHeader("Authorization", `Bearer ` + this.token);
+                            xhr.onreadystatechange = function () {
+                                if (xhr.readyState === 4) {
+                                    if (xhr.status === 200) {
+                                        // 请求成功，处理响应
+                                        // _this.drawLine()
+                                        let res = JSON.parse(xhr.response)
+                                        _this.nowData = res.data
+                                        _this.imgList = res.data.urls ?? []
+                                        _this.videoList = res.data.videoUrls ?? []
+                                        let infoWindow = new BMapGL.InfoWindow(infoContent, opts1);
+                                        _this.infoWindowForm = res.data;
+                                        let point = new BMapGL.Point(e.latLng.lng, e.latLng.lat);
+                                        if (document.getElementById("infoWindow")) {
+                                            document.getElementById("infoWindow").style.display = "block";
+                                        }
+                                        _this.map.openInfoWindow(infoWindow, point);
+                                    } else {
+                                        // 请求失败
+                                        console.error("上传失败");
+                                    }
+                                }
+                            };
+                            xhr.send();
+                        });
+
+                        this.map.addOverlay(polyline);
+                        setTimeout(() => {
+                            document.getElementById('loading').style.display = 'none'
+                        }, 3000)
+                    }
+                }
+
+            },
+            getPoint(id) {
+                let _this = this
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", this.baseUrl + `/dma/device/allList?deviceType=${id}`, true);
+                // xhr.open("GET", this.baseUrl +`/dma/device/allList?deviceType=${id}`, true);
+                xhr.setRequestHeader("Authorization", `Bearer ` + this.token);
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
+                            // 请求成功，处理响应
+                            // _this.drawLine()
+                            let res = JSON.parse(xhr.response)
+                            if (res.data) {
+                                _this.drawPoint(res.data)
+                            }
+                        } else {
+                            // 请求失败
+                            console.error("上传失败");
+                        }
+                    }
+                };
+                // 发送Ajax请求，带有FormData作为请求体
+                xhr.send();
+            },
+            drawPoint(points) {
+                let myArr = [];
+                let _this = this
+                if (points) {
+                    points.forEach((item) => {
+                        if (item.longitude) {
+                            myArr.push(new BMapGL.Point(item.longitude, item.latitude));
+                        }
+                    });
+                    if (myArr.length > 0) {
+                        let infoContent = document.getElementById("infoWindow1");
+                        myArr.forEach((child, i) => {
+
+                            let marker = new BMapGL.Marker(child);
+                            this.map.getPanes().floatShadow.style.display = 'none';
+                            marker.addEventListener("click", () => {
+
+
+                                var xhr = new XMLHttpRequest();
+                                xhr.open("GET", this.baseUrl + `/dma/device/${points[i].id}`, true);
+                                xhr.setRequestHeader("Authorization", `Bearer ` + this.token);
+                                xhr.onreadystatechange = function () {
+                                    if (xhr.readyState === 4) {
+                                        if (xhr.status === 200) {
+                                            // 请求成功，处理响应
+                                            // _this.drawLine()
+                                            let res = JSON.parse(xhr.response)
+                                            let lon = res.data.longitude
+                                            let lat = res.data.latitude
+                                            res.data.longitude = lon.substring(0, 7)
+                                            res.data.latitude = lat.substring(0, 6)
+                                            _this.imgList = res.data.urls ?? []
+                                            _this.videoList = res.data.videoUrls ?? []
+                                            _this.infoWindowForm = res.data;
+                                            let opts = {
+                                                title: res.data.deviceName, // 信息窗口标题
+                                            };
+                                            let infoWindow = new BMapGL.InfoWindow(infoContent, opts);
+                                            if (document.getElementById("infoWindow1")) {
+                                                document.getElementById("infoWindow1").style.display = "block";
+                                            }
+                                            _this.map.openInfoWindow(infoWindow, child);
+                                        } else {
+                                            // 请求失败
+                                            console.error("上传失败");
+                                        }
+                                    }
+                                };
+                                xhr.send();
+
+
+                            });
+
+                            this.map.addOverlay(marker);
+                            setTimeout(() => {
+                                document.getElementById('loading').style.display = 'none'
+                            }, 3000)
+                        });
+                    }
+
+                }
+
+            },
+            drawMonitor(points) {
+                let myArr = [];
+                let _this = this
+                if (points) {
+                    points.forEach((item) => {
+                        if (item.longitude) {
+                            myArr.push(new BMapGL.Point(item.longitude, item.latitude));
+                        }
+                    });
+                    if (myArr.length > 0) {
+                        let infoContent = document.getElementById("infoWindow2");
+                        myArr.forEach((child, i) => {
+
+                            let marker = new BMapGL.Marker(child);
+                            this.map.getPanes().floatShadow.style.display = 'none';
+                            marker.addEventListener("click", () => {
+                                var xhr = new XMLHttpRequest();
+                                xhr.open("GET", this.baseUrl + `/dma/alarmRecord/play?code=${points[i].serialNumber}`, true);
+                                xhr.setRequestHeader("Authorization", `Bearer ` + this.token);
+
+                                xhr.onreadystatechange = function () {
+                                    if (xhr.response) {
+                                        _this.infoWindowForm = points[i];
+                                        _this.infoWindowForm.liveUrl = xhr.response
+                                        let opts = {
+                                            title: points[i].monitorName, // 信息窗口标题
+                                            enableCloseOnClick: false
+                                        };
+                                        let infoWindow = new BMapGL.InfoWindow(infoContent, opts);
+                                        if (document.getElementById("infoWindow2")) {
+                                            document.getElementById("infoWindow2").style.display = "block";
+                                        }
+                                        _this.map.openInfoWindow(infoWindow, child);
+                                    }
+                                };
+                                xhr.send();
+
+
+                            });
+
+                            this.map.addOverlay(marker);
+                            setTimeout(() => {
+                                document.getElementById('loading').style.display = 'none'
+                            }, 3000)
+                        });
+                    }
+
+                }
+
+            },
+            uploadImg(id, type, deviceType) {
+                console.log(type, "typetypetype")
+                let _this = this
+                const oFile = document.getElementById('file');
+                console.log(oFile, "oFile")
+                const maxFileSize = 5 * 1024 * 1024; // 5 MB
+                const maxFiles = 1; // 最多上传5个文件
+                oFile.click()
+                oFile.onchange = async (e) => {
+                    const files = oFile.files;
+
+                    // 检查文件数量是否超过限制
+                    if (files.length > maxFiles) {
+                        alert('上传图片限制2张');
+                        return;
+                    }
+
+                    // 检查每个文件的大小是否超过限制
+                    for (let i = 0; i < files.length; i++) {
+                        if (files[i].size > maxFileSize) {
+                            alert('图片大小超过5MB');
+                            return;
+                        }
+                    }
+
+                    // 执行上传操作
+                    for (let i = 0; i < files.length; i++) {
+                        _this.ossUpload(files[i], id, type, deviceType);
+                    }
+                }
+            },
+            uploadVideo(id, type, deviceType) {
+                let _this = this
+                const oFile = document.getElementById('videoFile');
+                const maxFileSize = 50 * 1024 * 1024; // 50 MB
+                const maxFiles = 1; // 最多上传1个文件
+                oFile.click()
+                oFile.onchange = async (e) => {
+                    const files = oFile.files;
+
+                    // 检查文件数量是否超过限制
+                    if (files.length > maxFiles) {
+                        alert('上传限制1个');
+                        return;
+                    }
+
+                    // 检查每个文件的大小是否超过限制
+                    for (let i = 0; i < files.length; i++) {
+                        if (files[i].size > maxFileSize) {
+                            alert('视频大小不能超过50MB');
+                            return;
+                        }
+                    }
+
+                    // 执行上传操作
+                    for (let i = 0; i < files.length; i++) {
+                        _this.ossUploadVideo(files[i], id, type, deviceType);
+                    }
+                }
+            },
+            ossUpload(file, id, type, deviceType) {
+                let _this = this
+                let formData = new FormData()
+                formData.append('file', file)
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", this.baseUrl + `/system/oss/upload`, true);
+                // xhr.open("POST", this.baseUrl +`/system/oss/upload`, true);
+                xhr.setRequestHeader("Authorization", `Bearer ` + this.token);
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
+                            // 请求成功，处理响应
+                            // _this.drawLine()
+                            let res = JSON.parse(xhr.response)
+                            _this.imgList.push(res.data.url)
+                            if (type) _this.changePipelineImg(id)
+                            // if (type === '3') _this.changeImg(id)
+                            if (deviceType) _this.changeDeviceImg(id)
+                        } else {
+                            // 请求失败
+                            console.error("上传失败");
+                        }
+                    }
+                };
+                xhr.send(formData);
+            },
+            ossUploadVideo(file, id, type, deviceType) {
+                let _this = this
+                let formData = new FormData()
+                formData.append('file', file)
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", this.baseUrl + `/system/oss/upload`, true);
+                // xhr.open("POST", this.baseUrl +`/system/oss/upload`, true);
+                xhr.setRequestHeader("Authorization", `Bearer ` + this.token);
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
+                            // 请求成功，处理响应
+                            // _this.drawLine()
+                            let res = JSON.parse(xhr.response)
+                            _this.videoList.push(res.data.url)
+                            if (type) _this.changePipelineVideo(id)
+                            // if (type === '3') _this.changeImg(id)
+                            if (deviceType) _this.changeDeviceVideo(id)
+                        } else {
+                            // 请求失败
+                            console.error("上传失败");
+                        }
+                    }
+                };
+                xhr.send(formData);
+            },
+            changeDeviceImg(id) {
+                let _this = this
+                let obj = {
+                    correlationId: id,
+                    type: '3',
+                    urls: this.imgList
+                }
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", this.baseUrl + `/dma/app/picture/update`, true);
+                // xhr.open("PUT", this.baseUrl +`/dma/device`, true);
+                xhr.setRequestHeader("Authorization", `Bearer ` + this.token);
+                xhr.setRequestHeader("Content-Type", "application/json"); // 设置请求头为JSON格式
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
+                            // 请求成功，处理响应
+                            // _this.drawLine()
+                            let res = JSON.parse(xhr.response)
+                        } else {
+                            // 请求失败
+                            console.error("上传失败");
+                        }
+                    }
+                };
+                xhr.send(JSON.stringify(obj));
+            },
+            changePipelineImg(id) {
+                let _this = this
+                let obj = {
+                    correlationId: id,
+                    type: '1',
+                    urls: this.imgList
+                }
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", this.baseUrl + `/dma/app/picture/update`, true);
+                // xhr.open("PUT",this.baseUrl + `/dma/pipeline`, true);
+                xhr.setRequestHeader("Authorization", `Bearer ` + this.token);
+                xhr.setRequestHeader("Content-Type", "application/json"); // 设置请求头为JSON格式
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
+                            // 请求成功，处理响应
+                            // _this.drawLine()
+                            let res = JSON.parse(xhr.response)
+                        } else {
+                            // 请求失败
+                            console.error("上传失败");
+                        }
+                    }
+                };
+                xhr.send(JSON.stringify(obj));
+            },
+            changeDeviceVideo(id) {
+                let _this = this
+                let obj = {
+                    correlationId: id,
+                    type: '3',
+                    urls: this.imgList
+                }
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", this.baseUrl + `/dma/app/picture/update`, true);
+                // xhr.open("PUT", this.baseUrl +`/dma/device`, true);
+                xhr.setRequestHeader("Authorization", `Bearer ` + this.token);
+                xhr.setRequestHeader("Content-Type", "application/json"); // 设置请求头为JSON格式
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
+                            // 请求成功，处理响应
+                            // _this.drawLine()
+                            let res = JSON.parse(xhr.response)
+                        } else {
+                            // 请求失败
+                            console.error("上传失败");
+                        }
+                    }
+                };
+                xhr.send(JSON.stringify(obj));
+            },
+            changePipelineVideo(id) {
+                let _this = this
+                let obj = {
+                    correlationId: id,
+                    type: '1',
+                    videoUrls: this.videoList
+                }
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", this.baseUrl + `/dma/app/picture/video`, true);
+                // xhr.open("PUT",this.baseUrl + `/dma/pipeline`, true);
+                xhr.setRequestHeader("Authorization", `Bearer ` + this.token);
+                xhr.setRequestHeader("Content-Type", "application/json"); // 设置请求头为JSON格式
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
+                            // 请求成功，处理响应
+                            // _this.drawLine()
+                            let res = JSON.parse(xhr.response)
+                        } else {
+                            // 请求失败
+                            console.error("上传失败");
+                        }
+                    }
+                };
+                xhr.send(JSON.stringify(obj));
+            },
+            openFullscreen() {
+                const videoElement = document.querySelector('.content__img');
+                if (videoElement) {
+                    if (!document.fullscreenElement) {
+                        videoElement.requestFullscreen().catch(err => {
+                            console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+                        });
+                    } else {
+                        document.exitFullscreen();
+                    }
+                }
+            },
+            onDelClick(item, id, type, deviceType) {
+                this.imgList = this.imgList.filter(element => element !== item)
+                if (type) this.changePipelineImg(id)
+                // if (type === '3') _this.changeImg(id)
+                if (deviceType) this.changeDeviceImg(id)
+                this.imgFlag = this.imgList.length < 2;
+            },
+            onDelClickVideo(item, id, type, deviceType) {
+                this.videoList = this.videoList.filter(element => element !== item)
+                if (type) this.changePipelineVideo(id)
+                // if (type === '3') _this.changeImg(id)
+                if (deviceType) this.changeDeviceVideo(id)
+                console.log(this.videoList, "videoList")
+                this.videoFlag = this.videoList.length < 1;
+            },
+            initMap() {
+                this.map = new BMapGL.Map("container");
+                // this.point = new BMapGL.Point(117.833935, 26.792162);
+                this.point = new BMapGL.Point(118.263571, 26.564081);
+                this.map.centerAndZoom(this.point, 14);
+            },
+            seeMonitor(liveUrl) {
+                uni.navigateTo({
+                    url: `/pages/networkPipe/networkPipe?hlsUrl=${liveUrl}`
+                })
+            },
+            toLayerSelect() {
+                uni.redirectTo({
+                    url: `/pages/networkPipe/layerSelect/layerSelect`
+                })
+            },
+            changeMap() {
+                const mapType = this.flag ? BMAP_NORMAL_MAP : BMAP_EARTH_MAP;
+                this.map.setMapType(mapType);
+                this.map.centerAndZoom(this.point, this.currentZoom);
+                this.flag = !this.flag;
+            },
+            getCurrentLocation() {
+                this.map.centerAndZoom(this.point, 14);
+            },
+            handleAmplify() {
+                var center = this.map.getCenter();
+                var longitude = center.lng; // 经度
+                var latitude = center.lat; // 纬度
+                let zoom = this.map.getZoom(); // 获取缩放级别
+                var currentMapType = this.map.getMapType();
+                if (currentMapType === 'B_EARTH_MAP') {
+                    this.currentZoom = zoom + 2; // 保存新的缩放级别
+                } else {
+                    this.currentZoom = zoom + 1; // 保存新的缩放级别
+                }
+                setTimeout(() => {
+                    this.map.centerAndZoom(new BMapGL.Point(longitude, latitude), this.currentZoom);
+                }, 100);
+            },
+            handleReduce() {
+                var center = this.map.getCenter();
+                var longitude = center.lng; // 经度
+                var latitude = center.lat; // 纬度
+                let zoom = this.map.getZoom(); // 获取缩放级别
+                this.currentZoom = zoom - 1; // 保存新的缩放级别
+                this.map.centerAndZoom(new BMapGL.Point(longitude, latitude), this.currentZoom);
+            },
+        }
+    })
+</script>
+</html>

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport"
+          content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+    <meta name="referrer" content="never">
+    <title>监控视频</title>
+</head>
+<style>
+    html,
+    body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+    #dplayer {
+        width: 100%;
+        height: 100%;
+    }
+</style>
+
+<body>
+<div id="dplayer"></div>
+</body>
+<script src="./js/DPlayer.min.js"></script>
+<script src="./js/hls.js"></script>
+<script>
+    // 对地址进行解析
+    let url = location.href.split('?hlsUrl=')[1].replace('http:', '').replace('https:', '')
+    let dp = new DPlayer({
+        container: document.getElementById("dplayer"),
+        live: true,
+        autoplay: true,
+        preload: 'auto',
+        volume: 0,
+        lang: 'en',
+        video: {
+            url: url,
+            type: 'customHls',
+            customType: {
+                customHls: function (video, player) {
+                    const hls = new Hls();
+                    hls.loadSource(url);
+                    hls.attachMedia(video);
+                },
+            },
+        },
+    });
+    // dp.on('playing', () => {
+    //     dp.volume(1)
+    //     window.top.postMessage('playing');
+    //     document.getElementById('dplayer').setAttribute('style', 'pointer-events:none')
+    // })
+    var isMobile = !!navigator.userAgent.match(/AppleWebKit.*Mobile.*/);
+    console.log(isMobile, "Mobile")
+    if (isMobile) {
+        //全屏事件
+        dp.on('fullscreen', function () {
+            plus.screen.lockOrientation('landscape-primary');
+        });
+        //退出全屏事件
+        dp.on('fullscreen_cancel', function () {
+            plus.screen.lockOrientation('portrait')
+        });
+
+    }
+    dp.on('canplay', () => {
+        dp.play()
+        dp.fullScreen.request('web');
+    })
+    // window.addEventListener("message", function (event) {
+    //     dp && dp.paused && dp.play()
+    // })
+</script>
+</html>

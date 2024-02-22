@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电子围栏</title>
+    <script src="./js/vue.min.js"></script>
+    <script type="text/javascript" src="./js/jweixin-1.4.0.js"></script>
+    <script type="text/javascript" src="./js/uni.webview.1.5.2.js"></script>
+    <link href="./js/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <script src="./js/Cesium/Cesium.js"></script>
+    <style type="text/css" media="all">
+        #app {
+            width: 100%;
+            height: 100%;
+        }
+
+        #cesiumContainer {
+            width: 100%;
+            height: 100%;
+        }
+
+        html {
+            height: 100%;
+        }
+
+        body {
+            height: 100%;
+        }
+
+        .detail-btn {
+            position: absolute;
+            z-index: 9999;
+            width: 90%;
+            bottom: 20px;
+            left: 50%;
+            transform: translate(-50%, 0%)
+        }
+
+        .center-btn {
+            padding: 14px;
+            border-radius: 42px;
+            text-align: center;
+            background: #3875f6;
+            flex-grow: 1;
+        }
+
+        .cancel-button {
+            padding: 14px;
+            border-radius: 42px;
+            text-align: center;
+            flex-grow: 1;
+            box-shadow: 0 2px 10px 1px #ccc;
+            background: #fff;
+            border: 2px solid #2e5af6;
+            color: #8b8e98;
+        }
+
+        .button2 {
+            padding: 14px;
+            border-radius: 42px;
+            text-align: center;
+            background: #8fb0f6;
+            flex-grow: 1;
+        }
+
+        .font-sm {
+            /* 14px */
+            font-size: 0.875rem;
+            line-height: 0.875rem;
+        }
+
+        .color-fff {
+            color: #fff;
+        }
+
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div id="cesiumContainer"></div>
+    <div class="detail-btn">
+        <div class="flex-between">
+            <div class="cancel-button font-sm" @click="clear()">
+                清空点位
+            </div>
+            <div class="button2 font-sm color-fff" @click="closePolygon()">
+                闭合点位
+            </div>
+            <div class="center-btn font-sm color-fff" id="postMessage" @click="sendMessage()">
+                确认返回
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+
+<script>
+    new Vue({
+        el: '#app',
+        data() {
+            return {
+                viewer: null,
+                cesium: {
+                    infoWin: null,
+                    mode: "2d",
+                    initLng: 117.759051,
+                    initLat: 26.967364,
+                    initHeight: 2000,
+                    tiandituKey: "07565c6b1696404b2a4fa1a895b8c161", //天地图秘钥
+                    nowLoad: "",
+                },
+                tempEntities: [],
+                position: [],
+                tempPoints: []
+            }
+        },
+        mounted() {
+            this.initMap()
+            this.draw()
+            this.$nextTick(() => {
+                document.addEventListener('UniAppJSBridgeReady', function () {
+                    uni.getEnv(function (res) {
+                        console.log('当前环境：' + JSON.stringify(res));
+                    });
+                });
+            })
+        },
+        methods: {
+            initMap() {
+                var provider = new Cesium.UrlTemplateImageryProvider({
+                    url: "https://{s}.tianditu.gov.cn/DataServer?T=img_w&x={x}&y={y}&l={z}&tk=" +
+                        this.cesium.tiandituKey,
+                    subdomains: ["t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7"],
+                    maximumLevel: 64,
+                });
+                var viewer = new Cesium.Viewer("cesiumContainer", {
+                    infoBox: false, // 是否显示点击元素之后显示的信息
+                    timeline: false, // 是否显示时间线控件
+                    selectionIndicator: false, // 是否显示指示器组件
+                    animation: false, // 是否显示动画空间
+                    sceneModePicker: false, // 是否显示投影方式
+                    baseLayerPicker: false,
+                    homeButton: false, //小房子
+                    geocoder: false, //搜索框
+                    navigationHelpButton: false, //帮助
+                    //天地图
+                    imageryProvider: provider,
+                    enableZoomControls: false
+                });
+                viewer.scene.screenSpaceCameraController.enableTilt = false;
+                viewer._cesiumWidget._creditContainer.style.display = "none";
+                viewer.cesiumWidget.screenSpaceEventHandler.removeInputAction(
+                    Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK
+                );
+
+                this.cesium.provider = provider;
+                this.viewer = viewer; //初始化地图
+
+                this.viewer.camera.setView({
+                    // fromDegrees()方法，将经纬度和高程转换为世界坐标
+                    destination: Cesium.Cartesian3.fromDegrees(
+                        this.cesium.initLng,
+                        this.cesium.initLat,
+                        this.cesium.initHeight
+                    ),
+                    orientation: {
+                        heading: Cesium.Math.toRadians(0),
+                        roll: 0,
+                    },
+                });
+            },
+            draw() {
+                //绘制点
+                let that = this;
+                // let viewer = this.viewer;
+                // let tempEntities = this.tempEntities;
+                let position = that.position;
+                // let that.tempPoints = [];
+
+                // 开启深度检测
+                that.viewer.scene.globe.depthTestAgainstTerrain = true;
+                let handler = new Cesium.ScreenSpaceEventHandler(that.viewer.scene.canvas);
+
+                //鼠标移动事件
+                handler.setInputAction(function (movement) {
+                }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+                //左键点击操作
+                handler.setInputAction(function (click) {
+                    //调用获取位置信息的接口
+                    let ray = that.viewer.camera.getPickRay(click.position);
+                    that.position = that.viewer.scene.globe.pick(ray, that.viewer.scene);
+                    that.tempPoints.push(that.position);
+                    let tempLength = that.tempPoints.length;
+                    //调用绘制点的接口
+                    let point = that.drawPoint(that.position);
+                    that.tempEntities.push(point);
+                    if (tempLength > 1) {
+                        let pointline = that.drawPolyline([that.tempPoints[that.tempPoints.length - 2], that.tempPoints[that.tempPoints.length - 1]]);
+                        that.tempEntities.push(pointline);
+                    } else {
+                        // tooltip.innerHTML = "请绘制下一个点，右键结束";
+                    }
+                }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+                //右键点击操作
+                handler.setInputAction(function (click) {
+                    let cartesian = that.viewer.camera.pickEllipsoid(click.position, that.viewer.scene.globe.ellipsoid);
+                    console.log(cartesian, "22222222222222222222jkdfhgj")
+                    if (cartesian) {
+                        let tempLength = that.tempPoints.length;
+                        if (tempLength < 3) {
+                            alert('请选择3个以上的点再执行闭合操作命令');
+                        } else {
+                            //闭合最后一条线
+                            let pointline = that.drawPolyline([that.tempPoints[that.tempPoints.length - 1], that.tempPoints[0]]);
+                            that.tempEntities.push(pointline);
+                            that.drawPolygon(that.tempPoints);
+                            that.tempEntities.push(that.tempPoints);
+                            handler.destroy();//关闭事件句柄
+                            handler = null;
+                            //console.log(JSON.stringify(tempPoints));
+                            // parent.polygonCall(tempPoints);
+
+                        }
+                    }
+                }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+
+            },
+            drawPoint(position, config) {
+                let viewer = this.viewer;
+                let config_ = config ? config : {};
+                return viewer.entities.add({
+                    name: "点几何对象",
+                    position: position,
+                    point: {
+                        color: Cesium.Color.SKYBLUE,
+                        pixelSize: 10,
+                        outlineColor: Cesium.Color.YELLOW,
+                        outlineWidth: 3,
+                        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                    }
+                });
+            },
+            drawPolyline(positions, config_) {
+                let viewer = this.viewer;
+                if (positions.length < 1) return;
+                let config = config_ ? config_ : {};
+                return viewer.entities.add({
+                    name: "线几何对象",
+                    polyline: {
+                        positions: positions,
+                        width: config.width ? config.width : 5.0,
+                        material: new Cesium.PolylineGlowMaterialProperty({
+                            color: config.color ? new Cesium.Color.fromCssColorString(config.color) : Cesium.Color.GOLD,
+                        }),
+                        depthFailMaterial: new Cesium.PolylineGlowMaterialProperty({
+                            color: config.color ? new Cesium.Color.fromCssColorString(config.color) : Cesium.Color.GOLD,
+                        }),
+                        clampToGround: true,
+                    }
+                });
+            },
+            drawPolygon(positions, config_) {
+                let viewer = this.viewer;
+                if (positions.length < 2) return;
+                let config = config_ ? config_ : {};
+                return viewer.entities.add({
+                    name: "面几何对象",
+                    polygon: {
+                        hierarchy: positions,
+                        material: config.color ? new Cesium.Color.fromCssColorString(config.color).withAlpha(.2) : new Cesium.Color.fromCssColorString("#FFD700").withAlpha(.2),
+                    },
+                });
+            },
+            closePolygon() {
+                let that = this
+                let tempLength = that.tempPoints.length;
+                if (tempLength < 3) {
+                    alert('请选择3个以上的点再执行闭合操作命令');
+                } else {
+                    //闭合最后一条线
+                    let pointline = that.drawPolyline([that.tempPoints[that.tempPoints.length - 1], that.tempPoints[0]]);
+                    that.tempEntities.push(pointline);
+                    that.drawPolygon(that.tempPoints);
+                    that.tempEntities.push(that.tempPoints);
+                }
+            },
+            clear() {
+                this.tempEntities = []
+                this.position = []
+                this.tempPoints = []
+                this.viewer.entities.removeAll()
+            },
+            sendMessage() {
+                let polygonData = this.tempEntities[this.tempEntities.length - 1].map(item => ({
+                    x: item.x,
+                    y: item.y,
+                    z: item.z
+                }))
+                uni.webView.navigateBack({
+                    delta: 1
+                });
+                uni.webView.postMessage({
+                    data: {
+                        polygonData: polygonData
+                    }
+                });
+            }
+
+        }
+    })
+</script>
+</html>

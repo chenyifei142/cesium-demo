@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>应急物资总览</title>
+    <script src="./js/vue.min.js"></script>
+    <script type="text/javascript" src="./js/jweixin-1.4.0.js"></script>
+    <script type="text/javascript" src="./js/uni.webview.1.5.2.js"></script>
+    <link href="./js/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <script src="./js/Cesium/Cesium.js"></script>
+    <!-- 引入样式 -->
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <!-- 引入组件库 -->
+    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+    <style type="text/css" media="all">
+        #app {
+            width: 100%;
+            height: 100%;
+        }
+
+        #cesiumContainer {
+            width: 100%;
+            height: 100%;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background: #f2f2f2;
+        }
+
+        .select {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            z-index: 9999;
+        }
+
+        .el-select {
+            width: 150px;
+        }
+
+        .checkbox {
+            position: absolute;
+            top: 80px;
+            left: 20px;
+            z-index: 9999;
+        }
+
+        .el-checkbox-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .el-checkbox__label {
+            color: #fff;
+        }
+
+        .top {
+            position: absolute;
+            top: 0;
+            z-index: 999;
+            display: flex;
+            height: 60px;
+            width: 100%;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .box {
+            height: 55%;
+            width: 100%;
+            background: #fff;
+            margin: 30px 20px;
+            padding: 0px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid #E0E0E0;
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div class="top">
+        <div class="box">
+            <div>应急物资数量:{{num}}</div>
+            <div @click="goBack()">查看详情</div>
+        </div>
+    </div>
+    <div class="checkbox">
+        <el-checkbox-group v-model="checkList" @change="checkboxChange">
+            <el-checkbox label="重大危险源"></el-checkbox>
+            <el-checkbox label="应急物资"></el-checkbox>
+        </el-checkbox-group>
+    </div>
+<!--    <div class="select">-->
+<!--        <el-select v-model="text1" placeholder="请选择" @change="handleSelectChange(text1)">-->
+<!--            <el-option v-for="item in coList" :key="item.coId" :label="item.coName" :value="item.coId">-->
+<!--            </el-option>-->
+<!--        </el-select>-->
+<!--    </div>-->
+    <div id="cesiumContainer"></div>
+</div>
+</body>
+
+<script>
+    new Vue({
+        el: '#app',
+        data() {
+            return {
+                text1: '',
+                keyName: name,
+                viewer: null,
+                cesium: {
+                    infoWin: null,
+                    mode: "2d",
+                    initLng: 117.759051,
+                    initLat: 26.967364,
+                    initHeight: 2000,
+                    tiandituKey: "07565c6b1696404b2a4fa1a895b8c161", //天地图秘钥
+                    nowLoad: "",
+                },
+                posData: [],
+                polygonData: [],
+                polygonsData: [],
+                point: [],
+                pointData: [],
+                flag: false,
+                formData: [],
+                coList: [],
+                checkList: [],
+                num: 0,
+                filteredData: []
+            }
+        },
+        mounted() {
+            const queryString = window.location.search;
+            // 将查询参数字符串解析成对象
+            const queryParams = new URLSearchParams(queryString);
+            // 获取指定参数的值
+            const data = queryParams.get('data'); // "123"
+            const coList = queryParams.get('coList'); // "123"
+            if (data) {
+                this.formData = JSON.parse(data)
+                this.filteredData = this.formData
+                this.formData.forEach(item => {
+                    this.num += parseInt(item.num)
+                })
+            }
+            if (coList) {
+                this.coList = JSON.parse(coList)
+                this.coList.unshift({coId: 0, coName: '全部'})
+            }
+            this.initMap()
+            this.$nextTick(() => {
+                document.addEventListener('UniAppJSBridgeReady', function () {
+                    uni.getEnv(function (res) {
+                        console.log('当前环境：' + JSON.stringify(res));
+                    });
+                });
+            })
+        },
+        methods: {
+            handleSelectChange(e) {
+                this.viewer.entities.removeAll()
+                this.checkList = []
+                if (e != 0) {
+                    this.filteredData = this.formData.filter(item => item.coId === e);
+                    this.filteredData.forEach(item => {
+                        if (item.polygon && (item.polygon !== '[]')) {
+                            this.drawPolygon(item.polygon)
+                        }
+                        if (item.lat && item.lng) {
+                            this.drawPoint([{x: item.lng, y: item.lat, z: 0}])
+                        }
+                    })
+                } else {
+                    this.filteredData = this.formData
+                    this.formData.forEach(item => {
+                        if (item.polygon && (item.polygon !== '[]')) {
+                            this.drawPolygon(item.polygon)
+                        }
+                        if (item.lat && item.lng) {
+                            this.drawPoint([{x: item.lng, y: item.lat, z: 0}])
+                        }
+                    })
+                }
+            },
+            checkboxChange(e) {
+                this.viewer.entities.removeAll()
+                if (e.includes('应急物资')) {
+                    this.filteredData.forEach(item => {
+                        if (item.lat && item.lng) {
+                            this.drawPoint([{x: item.lng, y: item.lat, z: 0}])
+                        }
+                    })
+                }
+                if (e.includes('重大危险源')) {
+                    this.filteredData.forEach(item => {
+                        if (item.polygon && (item.polygon !== '[]')) {
+                            this.drawPolygon(item.polygon)
+                        }
+                    })
+                }
+                if (e && e.length === 0) {
+                    this.filteredData.forEach(item => {
+                        if (item.polygon && (item.polygon !== '[]')) {
+                            this.drawPolygon(item.polygon)
+                        }
+                        if (item.lat && item.lng) {
+                            this.drawPoint([{x: item.lng, y: item.lat, z: 0}])
+                        }
+                    })
+                }
+            },
+            initMap() {
+                var provider = new Cesium.UrlTemplateImageryProvider({
+                    url: "https://{s}.tianditu.gov.cn/DataServer?T=img_w&x={x}&y={y}&l={z}&tk=" +
+                        this.cesium.tiandituKey,
+                    subdomains: ["t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7"],
+                    maximumLevel: 18,
+                });
+                var viewer = new Cesium.Viewer("cesiumContainer", {
+                    infoBox: false, // 是否显示点击元素之后显示的信息
+                    timeline: false, // 是否显示时间线控件
+                    selectionIndicator: false, // 是否显示指示器组件
+                    animation: false, // 是否显示动画空间
+                    sceneModePicker: false, // 是否显示投影方式
+                    baseLayerPicker: false,
+                    homeButton: false, //小房子
+                    geocoder: false, //搜索框
+                    navigationHelpButton: false, //帮助
+                    //天地图
+                    imageryProvider: provider,
+                    enableZoomControls: false
+                });
+                viewer.scene.screenSpaceCameraController.enableTilt = false;
+                viewer._cesiumWidget._creditContainer.style.display = "none";
+                viewer.cesiumWidget.screenSpaceEventHandler.removeInputAction(
+                    Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK
+                );
+
+                this.cesium.provider = provider;
+                this.viewer = viewer; //初始化地图
+
+                this.viewer.camera.setView({
+                    // fromDegrees()方法，将经纬度和高程转换为世界坐标
+                    destination: Cesium.Cartesian3.fromDegrees(
+                        this.cesium.initLng,
+                        this.cesium.initLat,
+                        this.cesium.initHeight
+                    ),
+                    orientation: {
+                        heading: Cesium.Math.toRadians(0),
+                        roll: 0,
+                    },
+                });
+
+                this.formData.forEach(item => {
+                    if (item.polygon && (item.polygon !== '[]')) {
+                        this.drawPolygon(item.polygon)
+                    }
+                    if (item.lat && item.lng) {
+                        console.log(item, "item")
+                        this.drawPoint([{x: item.lng, y: item.lat, z: 0, id: item.resourcePointId}])
+                    }
+                })
+                this.handlePointClick()
+                // if (this.polygonData.length) this.drawPolyline(this.polygonData)
+                // if (this.pointData.length) this.drawPoint(this.pointData)
+                // if (this.polygonsData) {
+                //     let arr = this.polygonsData.split('!')
+                //     for (let i = 0; i < arr.length; i++) {
+                //         this.drawPolygon(JSON.parse(arr[i]))
+                //     }
+                // }
+
+            },
+            drawPolygon(positions) {
+                if (typeof positions === "string") positions = JSON.parse(positions)
+                var ellipsoid = this.viewer.scene.globe.ellipsoid;
+                let cartesian3 = new Cesium.Cartesian3(positions[0].x, positions[0].y, positions[0].z)
+                let polyCenter = Cesium.BoundingSphere.fromPoints([cartesian3]).center;
+                var cartographic = ellipsoid.cartesianToCartographic(polyCenter);
+                var lat = Cesium.Math.toDegrees(cartographic.latitude);
+                var lng = Cesium.Math.toDegrees(cartographic.longitude);
+                var alt = cartographic.height;
+                this.viewer.camera.setView({
+                    destination: Cesium.Cartesian3.fromDegrees(
+                        lng,
+                        lat,
+                        2000
+                    ),
+                    orientation: {
+                        heading: Cesium.Math.toRadians(0),
+                        roll: 0,
+                    },
+                });
+                var config = {color: "#f72121", width: 4};
+                this.viewer.entities.add({
+                    polygon: {
+                        hierarchy: positions,
+                        material: new Cesium.Color.fromCssColorString(config.color).withAlpha(0.5),
+                        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, //设置HeightReference高度参考类型为CLAMP_TO_GROUND贴地类型
+                    },
+                });
+            },
+            drawPolyline(positions) {
+                if (typeof positions === "string") positions = JSON.parse(positions)
+                var ellipsoid = this.viewer.scene.globe.ellipsoid;
+                let cartesian3 = new Cesium.Cartesian3(positions[0].x, positions[0].y, positions[0].z)
+                let polyCenter = Cesium.BoundingSphere.fromPoints([cartesian3]).center;
+                var cartographic = ellipsoid.cartesianToCartographic(polyCenter);
+                var lat = Cesium.Math.toDegrees(cartographic.latitude);
+                var lng = Cesium.Math.toDegrees(cartographic.longitude);
+                var alt = cartographic.height;
+                this.viewer.camera.setView({
+                    // fromDegrees()方法，将经纬度和高程转换为世界坐标
+                    destination: Cesium.Cartesian3.fromDegrees(
+                        lng,
+                        lat,
+                        600
+                    ),
+                    orientation: {
+                        heading: Cesium.Math.toRadians(0),
+                        roll: 0,
+                    },
+                });
+                var config = {color: "#f72121", width: 4};
+                this.viewer.entities.add({
+                    polygon: {
+                        hierarchy: positions,
+                        material: new Cesium.Color.fromCssColorString(config.color).withAlpha(0.5),
+                        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, //设置HeightReference高度参考类型为CLAMP_TO_GROUND贴地类型
+                    },
+                });
+            },
+            drawPoint(position) {
+                console.log(position, "positionposition")
+                // this.viewer.camera.setView({
+                //     // fromDegrees()方法，将经纬度和高程转换为世界坐标
+                //     destination: Cesium.Cartesian3.fromDegrees(
+                //         position[0].x,
+                //         position[0].y,
+                //         600
+                //     ),
+                //     orientation: {
+                //         heading: Cesium.Math.toRadians(0),
+                //         roll: 0,
+                //     },
+                // });
+                this.viewer.entities.add({
+                    id: position[0].id,
+                    position: Cesium.Cartesian3.fromDegrees(position[0].x, position[0].y),
+                    point: {
+                        pixelSize: 10,
+                        color: Cesium.Color.RED,
+                        eyeOffset: new Cesium.Cartesian3(0, 0, -300),
+                        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+                    },
+                })
+            },
+            handlePointClick() {
+                let that = this;
+                let handler = new Cesium.ScreenSpaceEventHandler(that.viewer.scene.canvas);
+                handler.setInputAction(function (click) {
+                    let pick = that.viewer.scene.pick(click.position)
+                    console.log(pick, "1111111")
+                    if (pick && pick.id) {
+                        uni.redirectTo({
+                            url: `/pages-emergency-manage/shared/supplies/point-list?query=${ encodeURIComponent(JSON.stringify({id:pick.id.id})) }`
+                        });
+                    }
+                }, Cesium.ScreenSpaceEventType.LEFT_CLICK)
+            },
+            goBack() {
+                uni.redirectTo({
+                    url: '/pages-emergency-manage/shared/supplies/list'
+                });
+            }
+        }
+    })
+</script>
+</html>

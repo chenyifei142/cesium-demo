@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电子围栏</title>
+    <script src="./js/vue.min.js"></script>
+    <script type="text/javascript" src="./js/jweixin-1.4.0.js"></script>
+    <script type="text/javascript" src="./js/uni.webview.1.5.2.js"></script>
+    <link href="./js/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <script src="./js/Cesium/Cesium.js"></script>
+    <style type="text/css" media="all">
+        #app {
+            width: 100%;
+            height: 100%;
+        }
+
+        #cesiumContainer {
+            width: 100%;
+            height: 100%;
+        }
+
+        html {
+            height: 100%;
+        }
+
+        body {
+            height: 100%;
+        }
+
+        .detail-btn {
+            position: absolute;
+            z-index: 9999;
+            width: 70%;
+            bottom: 20px;
+            left: 50%;
+            transform: translate(-50%, 0%)
+        }
+
+        .center-btn {
+            padding: 14px;
+            border-radius: 42px;
+            text-align: center;
+            background: #3875f6;
+            flex-grow: 1;
+        }
+
+        .font-sm {
+            /* 14px */
+            font-size: 0.875rem;
+            line-height: 0.875rem;
+        }
+
+        .color-fff {
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div id="cesiumContainer" @click="getClickPointAdd()"></div>
+    <div class="detail-btn">
+        <div class="center-btn font-sm color-fff" id="postMessage" @click="sendMessage()">
+            确认放回
+        </div>
+    </div>
+</div>
+</body>
+
+<script>
+    new Vue({
+        el: '#app',
+        data() {
+            return {
+                viewer: null,
+                cesium: {
+                    infoWin: null,
+                    mode: "2d",
+                    initLng: 117.759051,
+                    initLat: 26.967364,
+                    initHeight: 2000,
+                    tiandituKey: "07565c6b1696404b2a4fa1a895b8c161", //天地图秘钥
+                    nowLoad: "",
+                },
+                posData: [],
+                polygonData: [],
+                pointData: [],
+                flag: false
+            }
+        },
+        mounted() {
+            this.initMap()
+            this.getClickPointAdd()
+            this.$nextTick(() => {
+                document.addEventListener('UniAppJSBridgeReady', function () {
+                    uni.getEnv(function (res) {
+                        console.log('当前环境：' + JSON.stringify(res));
+                    });
+                });
+            })
+        },
+        methods: {
+            initMap() {
+                var provider = new Cesium.UrlTemplateImageryProvider({
+                    url: "https://{s}.tianditu.gov.cn/DataServer?T=img_w&x={x}&y={y}&l={z}&tk=" +
+                        this.cesium.tiandituKey,
+                    subdomains: ["t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7"],
+                    maximumLevel: 64,
+                });
+                var viewer = new Cesium.Viewer("cesiumContainer", {
+                    infoBox: false, // 是否显示点击元素之后显示的信息
+                    timeline: false, // 是否显示时间线控件
+                    selectionIndicator: false, // 是否显示指示器组件
+                    animation: false, // 是否显示动画空间
+                    sceneModePicker: false, // 是否显示投影方式
+                    baseLayerPicker: false,
+                    homeButton: false, //小房子
+                    geocoder: false, //搜索框
+                    navigationHelpButton: false, //帮助
+                    //天地图
+                    imageryProvider: provider,
+                    enableZoomControls: false
+                });
+                viewer.scene.screenSpaceCameraController.enableTilt = false;
+                viewer._cesiumWidget._creditContainer.style.display = "none";
+                viewer.cesiumWidget.screenSpaceEventHandler.removeInputAction(
+                    Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK
+                );
+
+                this.cesium.provider = provider;
+                this.viewer = viewer; //初始化地图
+
+                this.viewer.camera.setView({
+                    // fromDegrees()方法，将经纬度和高程转换为世界坐标
+                    destination: Cesium.Cartesian3.fromDegrees(
+                        this.cesium.initLng,
+                        this.cesium.initLat,
+                        this.cesium.initHeight
+                    ),
+                    orientation: {
+                        heading: Cesium.Math.toRadians(0),
+                        roll: 0,
+                    },
+                });
+                if (this.polygonData.length) this.drawPolyline(this.polygonData)
+                if (this.pointData.length) this.drawPoint(this.pointData)
+            },
+            getClickPointAdd() {
+                let _this = this
+                let _viewer = this.viewer
+
+                // 注册屏幕点击事件
+                let handler = new Cesium.ScreenSpaceEventHandler(_viewer.scene.canvas);
+                handler.setInputAction(function (event) {
+                    // 转换为不包含地形的笛卡尔坐标
+                    let clickPosition = _viewer.scene.camera.pickEllipsoid(event.position);
+                    // 转经纬度（弧度）坐标
+                    let radiansPos = Cesium.Cartographic.fromCartesian(clickPosition);
+                    // 转角度
+                    _this.pointData.longitude = Cesium.Math.toDegrees(radiansPos.longitude)
+                    _this.pointData.latitude = Cesium.Math.toDegrees(radiansPos.latitude)
+                    console.log("经度：" + Cesium.Math.toDegrees(radiansPos.longitude) + ", 纬度：" + Cesium.Math.toDegrees(radiansPos.latitude));
+                    _this.addBillboard(clickPosition)
+                }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+            },
+            addBillboard(coordinate) {
+                const billboardOrigin = this.viewer.entities.getById("billboardId");
+                if (billboardOrigin) {
+                    //根据id, 清除之前创建的实体
+                    this.viewer.entities.remove(billboardOrigin);
+                }
+                const billboardEntity = new Cesium.Entity({
+                    id: "billboardId",
+                    position: coordinate,
+                    point: {
+                        color: Cesium.Color.RED,
+                        pixelSize: 10,
+                        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                    },
+                });
+                this.viewer.entities.add(billboardEntity);
+            },
+            sendMessage() {
+                uni.navigateBack({
+                    delta: 1
+                });
+                uni.postMessage({
+                    data: {
+                        longitude: this.pointData.longitude,
+                        latitude: this.pointData.latitude
+                    }
+                });
+
+            }
+        }
+    })
+</script>
+</html>

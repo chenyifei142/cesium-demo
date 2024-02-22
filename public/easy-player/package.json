@@ -1,0 +1,74 @@
+{
+  "name": "easy-player",
+  "description": "rtmp, hls, flv and websocket player",
+  "version": "2.2.7",
+  "author": "penggy <peng.wu@foxmail.com>",
+  "license": "MIT",
+  "private": false,
+  "scripts": {
+    "start": "cross-env NODE_ENV=development webpack-dev-server --host 0.0.0.0 --useLocalIp --open --open-page element/index.html",
+    "build": "cross-env NODE_ENV=production webpack --progress --hide-modules"
+  },
+  "files": [
+    "dist/",
+    "README.md"
+  ],
+  "main": "dist/component/easy-player-component.min.js",
+  "devDependencies": {
+    "axios": "0.17.1",
+    "babel-core": "6.26.0",
+    "babel-loader": "7.1.2",
+    "babel-plugin-component": "1.0.0",
+    "babel-polyfill": "6.26.0",
+    "babel-preset-env": "1.6.0",
+    "babel-preset-stage-3": "6.24.1",
+    "clean-webpack-plugin": "0.1.17",
+    "copy-webpack-plugin": "4.1.1",
+    "cross-env": "5.0.5",
+    "css-loader": "0.28.7",
+    "document-register-element": "1.7.0",
+    "exports-loader": "0.6.4",
+    "expose-loader": "0.7.4",
+    "extract-text-webpack-plugin": "3.0.1",
+    "file-loader": "1.1.5",
+    "file-saver": "2.0.0",
+    "flv.js": "1.4.2",
+    "font-awesome": "4.7.0",
+    "html-webpack-plugin": "2.30.1",
+    "less": "3.0.0-alpha.3",
+    "less-loader": "4.0.5",
+    "moment": "2.18.1",
+    "optimize-css-assets-webpack-plugin": "3.2.0",
+    "style-loader": "0.19.0",
+    "uglify-js": "2.8.29",
+    "url-loader": "0.6.2",
+    "videojs-flvjs": "0.2.0",
+    "vue": "2.5.13",
+    "vue-custom-element": "^3.2.6",
+    "vue-loader": "13.3.0",
+    "vue-router": "3.0.1",
+    "vue-template-compiler": "2.5.13",
+    "vuex": "2.4.1",
+    "webpack": "3.6.0",
+    "webpack-concat-plugin": "2.4.2",
+    "webpack-dev-server": "2.7.1",
+    "wrapper-webpack-plugin": "1.0.0"
+  },
+  "keywords": [
+    "easy-player",
+    "hls",
+    "rtmp",
+    "flv"
+  ],
+  "pack": [
+    {
+      "name": "EasyPlayer.js",
+      "format": "zip",
+      "pattern": "{dist/element/**,dist/component/**,README.pdf}",
+      "options": {
+        "dot": true,
+        "ignore": []
+      }
+    }
+  ]
+}
